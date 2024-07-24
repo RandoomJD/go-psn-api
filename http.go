@@ -4,31 +4,25 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
 )
 
-type headers map[string]string
+var baseURL = must(url.Parse("https://np.community.playstation.net"))
 
-func (p *psn) post(ctx context.Context, formData url.Values, url string, headers headers, value interface{}) error {
-	req, err := http.NewRequestWithContext(
-		ctx,
-		"POST",
-		url,
-		strings.NewReader(formData.Encode()),
-	)
+func (api *Api) request(ctx context.Context, method string, body io.Reader, url *url.URL, header http.Header, value any) error {
+	req, err := http.NewRequestWithContext(ctx, method, url.String(), body)
 	if err != nil {
-		return fmt.Errorf("can't create new POST request %w: ", err)
+		return fmt.Errorf("can't create new %s request: %v", method, err)
 	}
 
-	for k, v := range headers {
-		req.Header.Add(k, v)
-	}
+	req.Header = header
 
-	resp, err := p.http.Do(req)
+	resp, err := api.client.Do(req)
 	if err != nil {
-		return fmt.Errorf("can't execute POST request %w: ", err)
+		return fmt.Errorf("can't execute %s request: %v", method, err)
 	}
 
 	defer func() {
@@ -41,44 +35,16 @@ func (p *psn) post(ctx context.Context, formData url.Values, url string, headers
 
 	err = json.NewDecoder(resp.Body).Decode(&value)
 	if err != nil {
-		return fmt.Errorf("can't decode POST request %w: ", err)
+		return fmt.Errorf("can't decode %s request: %v", method, err)
 	}
 
 	return nil
 }
 
-func (p *psn) get(ctx context.Context, url string, headers headers, value interface{}) error {
-	req, err := http.NewRequestWithContext(
-		ctx,
-		"GET",
-		url,
-		nil,
-	)
-	if err != nil {
-		return fmt.Errorf("can't create new GET request %w: ", err)
-	}
+func (api *Api) post(ctx context.Context, formData url.Values, url *url.URL, header http.Header, value any) error {
+	return api.request(ctx, http.MethodPost, strings.NewReader(formData.Encode()), url, header, value)
+}
 
-	for k, v := range headers {
-		req.Header.Add(k, v)
-	}
-
-	resp, err := p.http.Do(req)
-	if err != nil {
-		return fmt.Errorf("can't execute GET request %w: ", err)
-	}
-
-	defer func() {
-		err = resp.Body.Close()
-	}()
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("bad request")
-	}
-
-	err = json.NewDecoder(resp.Body).Decode(&value)
-	if err != nil {
-		return fmt.Errorf("can't decode POST request %w: ", err)
-	}
-
-	return nil
+func (api *Api) get(ctx context.Context, url *url.URL, header http.Header, value any) error {
+	return api.request(ctx, http.MethodGet, nil, url, header, value)
 }

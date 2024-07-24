@@ -3,71 +3,64 @@ package psn
 import (
 	"context"
 	"fmt"
-	"time"
+	"net/url"
+	"strings"
 )
 
-const trophyGroupApi = "-tpy.np.community.playstation.net/trophy/v1/trophyTitles/"
+const trophyGroupSuffix = "-tpy."
+const trophyGroupApi = "trophy/v1/trophyTitles"
 
-type TrophyGroupResponse struct {
-	TrophyTitleName     string `json:"trophyTitleName"`
-	TrophyTitleDetail   string `json:"trophyTitleDetail"`
-	TrophyTitleIconURL  string `json:"trophyTitleIconUrl"`
-	TrophyTitlePlatfrom string `json:"trophyTitlePlatfrom"`
-	DefinedTrophies     struct {
-		Bronze   int `json:"bronze"`
-		Silver   int `json:"silver"`
-		Gold     int `json:"gold"`
-		Platinum int `json:"platinum"`
-	} `json:"definedTrophies"`
-	TrophyGroups []struct {
-		TrophyGroupID           string `json:"trophyGroupId"`
-		TrophyGroupName         string `json:"trophyGroupName"`
-		TrophyGroupDetail       string `json:"trophyGroupDetail"`
-		TrophyGroupIconURL      string `json:"trophyGroupIconUrl"`
-		TrophyGroupSmallIconURL string `json:"trophyGroupSmallIconUrl"`
-		DefinedTrophies         struct {
-			Bronze   int `json:"bronze"`
-			Silver   int `json:"silver"`
-			Gold     int `json:"gold"`
-			Platinum int `json:"platinum"`
-		} `json:"definedTrophies"`
-		ComparedUser struct {
-			OnlineID       string `json:"onlineId"`
-			Progress       int    `json:"progress"`
-			EarnedTrophies struct {
-				Bronze   int `json:"bronze"`
-				Silver   int `json:"silver"`
-				Gold     int `json:"gold"`
-				Platinum int `json:"platinum"`
-			} `json:"earnedTrophies"`
-			LastUpdateDate time.Time `json:"lastUpdateDate"`
-		} `json:"comparedUser"`
-	} `json:"trophyGroups"`
+// trophyURL returns https։//[region]-tpy․np․community․playstation․net
+func trophyURL(region Region) *url.URL {
+	new := baseURL.JoinPath()
+	new.Host = string(region) + trophyGroupSuffix + new.Host
+	return new
+}
+
+type TrophyTitle struct {
+	Name            string        `json:"trophyTitleName"`
+	Detail          string        `json:"trophyTitleDetail"`
+	IconURL         string        `json:"trophyTitleIconUrl"`
+	Platfrom        string        `json:"trophyTitlePlatfrom"` // typo in Sony's response
+	DefinedTrophies TrophyCount   `json:"definedTrophies"`
+	TrophyGroups    []TrophyGroup `json:"trophyGroups"`
+}
+
+type TrophyGroup struct {
+	ID              string       `json:"trophyGroupId"`
+	Name            string       `json:"trophyGroupName"`
+	Detail          string       `json:"trophyGroupDetail"`
+	IconURL         string       `json:"trophyGroupIconUrl"`
+	SmallIconURL    string       `json:"trophyGroupSmallIconUrl"`
+	DefinedTrophies TrophyCount  `json:"definedTrophies"`
+	ComparedUser    UserProgress `json:"comparedUser"`
+}
+
+func (api *Api) baseTrophyQuery(username string, fields ...string) url.Values {
+	var sb strings.Builder
+	sb.WriteString(trophyFields)
+	for _, f := range fields {
+		sb.WriteString(",")
+		sb.WriteString(f)
+	}
+	q := url.Values{}
+	q.Add("fields", sb.String())
+	q.Add("comparedUser", username)
+	q.Add("npLanguage", string(api.lang))
+	return q
 }
 
 // Method retrieves user's trophy groups
-func (p *psn) GetTrophyGroups(ctx context.Context, trophyTitleId, username string) (*TrophyGroupResponse, error) {
-	var h = headers{}
-	h["authorization"] = fmt.Sprintf("Bearer %s", p.accessToken)
-	h["Accept"] = "*/*"
-	h["Accept-Encoding"] = "gzip, deflate, br"
+func (api *Api) GetTrophyGroups(ctx context.Context, trophyTitleId, username string) (TrophyTitle, error) {
+	headers := api.trophyHeaders()
 
-	response := TrophyGroupResponse{}
-	err := p.get(
-		ctx,
-		fmt.Sprintf(
-			"https://%s%s%s/trophyGroups?fields=@default,trophyGroupSmallIconUrl&comparedUser=%s&npLanguage=%s",
-			p.region,
-			trophyGroupApi,
-			trophyTitleId,
-			username,
-			p.lang,
-		),
-		h,
-		&response,
-	)
+	url := trophyURL(api.region).JoinPath(trophyGroupApi, trophyTitleId, "trophyGroups")
+	url.RawQuery = api.baseTrophyQuery(username).Encode()
+
+	var resp TrophyTitle
+	err := api.get(ctx, url, headers, &resp)
 	if err != nil {
-		return nil, fmt.Errorf("can't do GET request: %w", err)
+		return TrophyTitle{}, fmt.Errorf("can't do GET request: %w", err)
 	}
-	return &response, nil
+	return resp, nil
 }

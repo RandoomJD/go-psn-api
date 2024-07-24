@@ -3,52 +3,64 @@ package psn
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"time"
 )
 
-const trophiesApi = "-tpy.np.community.playstation.net/trophy/v1/trophyTitles/"
+const trophiesApi = "trophy/v1/trophyTitles/"
 
-type TrophiesResponse struct {
-	Trophies []struct {
-		TrophyID           int    `json:"trophyId"`
-		TrophyHidden       bool   `json:"trophyHidden"`
-		TrophyType         string `json:"trophyType"`
-		TrophyName         string `json:"trophyName"`
-		TrophyDetail       string `json:"trophyDetail"`
-		TrophyIconURL      string `json:"trophyIconUrl"`
-		TrophySmallIconURL string `json:"trophySmallIconUrl"`
-		TrophyRare         int    `json:"trophyRare"`
-		TrophyEarnedRate   string `json:"trophyEarnedRate"`
-		FromUser           struct {
-			OnlineID string `json:"onlineId"`
-			Earned   bool   `json:"earned"`
-		} `json:"fromUser,omitempty"`
-	} `json:"trophies"`
+type UserProgress struct {
+	User
+	Progress       int         `json:"progress"`
+	EarnedTrophies TrophyCount `json:"earnedTrophies"`
+	HiddenFlag     bool        `json:"hiddenFlag"`
+	LastUpdateDate time.Time   `json:"lastUpdateDate"`
 }
 
-// Method retrieves user's trophies
-func (p *psn) GetTrophies(ctx context.Context, trophyTitleId, trophyGroupId, username string) (*TrophiesResponse, error) {
-	var h = headers{}
-	h["authorization"] = fmt.Sprintf("Bearer %s", p.accessToken)
-	h["Accept"] = "*/*"
-	h["Accept-Encoding"] = "gzip, deflate, br"
+type UserEarned struct {
+	User
+	Earned bool `json:"earned"`
+}
 
-	trophiesResponse := TrophiesResponse{}
-	err := p.get(
-		ctx,
-		fmt.Sprintf(
-			"https://%s%s%s/trophyGroups/%s/trophies?fields=@default,trophyRare,trophyEarnedRate,trophySmallIconUrl&visibleType=1&comparedUser=%s&npLanguage=%s",
-			p.region,
-			trophiesApi,
-			trophyTitleId,
-			trophyGroupId,
-			username,
-			p.lang,
-		),
-		h,
-		&trophiesResponse,
-	)
+type Trophy struct {
+	ID           int        `json:"trophyId"`
+	Hidden       bool       `json:"trophyHidden"`
+	Type         string     `json:"trophyType"`
+	Name         string     `json:"trophyName"`
+	Detail       string     `json:"trophyDetail"`
+	IconURL      string     `json:"trophyIconUrl"`
+	SmallIconURL string     `json:"trophySmallIconUrl"`
+	Rare         int        `json:"trophyRare"`
+	EarnedRate   string     `json:"trophyEarnedRate"`
+	FromUser     UserEarned `json:"fromUser"`
+}
+
+func (api *Api) trophyHeaders() http.Header {
+	h := api.profileHeaders()
+	h.Add("Accept", "*/*")
+	h.Add("Accept-Encoding", "gzip, deflate, br")
+	return h
+}
+
+var trophyFields = "@default, trophySmallIconUrl"
+
+// Method retrieves user's trophies
+func (api *Api) GetTrophies(ctx context.Context, titleId, trophyGroupId, username string) ([]Trophy, error) {
+	type Response struct {
+		Trophies []Trophy `json:"trophies"`
+	}
+
+	headers := api.trophyHeaders()
+
+	url := trophyURL(api.region).JoinPath(trophiesApi, titleId, "trophyGroups", trophyGroupId, "trophies")
+	q := api.baseTrophyQuery(username, "trophyRare", "trophyEarnedRate")
+	q.Add("visibleType", "1")
+	url.RawQuery = q.Encode()
+
+	var resp Response
+	err := api.get(ctx, url, headers, &resp)
 	if err != nil {
 		return nil, fmt.Errorf("can't do GET request: %w", err)
 	}
-	return &trophiesResponse, nil
+	return resp.Trophies, nil
 }
