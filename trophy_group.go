@@ -51,7 +51,7 @@ func (api *Api) baseTrophyQuery(username string, fields ...string) url.Values {
 }
 
 // Method retrieves user's trophy groups
-func (api *Api) GetTrophyGroups(ctx context.Context, trophyTitleId, username string) (TrophyTitle, error) {
+func (api *AuthedApi) GetTrophyGroups(ctx context.Context, trophyTitleId, username string) (TrophyTitle, error) {
 	headers := api.trophyHeaders()
 
 	url := trophyURL(api.region).JoinPath(trophyGroupApi, trophyTitleId, "trophyGroups")

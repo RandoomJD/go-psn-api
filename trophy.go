@@ -35,7 +35,7 @@ type Trophy struct {
 	FromUser     UserEarned `json:"fromUser"`
 }
 
-func (api *Api) trophyHeaders() http.Header {
+func (api *AuthedApi) trophyHeaders() http.Header {
 	h := api.profileHeaders()
 	h.Add("Accept", "*/*")
 	h.Add("Accept-Encoding", "gzip, deflate, br")
@@ -45,7 +45,7 @@ func (api *Api) trophyHeaders() http.Header {
 var trophyFields = "@default, trophySmallIconUrl"
 
 // Method retrieves user's trophies
-func (api *Api) GetTrophies(ctx context.Context, titleId, trophyGroupId, username string) ([]Trophy, error) {
+func (api *AuthedApi) GetTrophies(ctx context.Context, titleId, trophyGroupId, username string) ([]Trophy, error) {
 	type Response struct {
 		Trophies []Trophy `json:"trophies"`
 	}

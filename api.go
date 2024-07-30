@@ -1,7 +1,6 @@
 package psn
 
 import (
-	"errors"
 	"fmt"
 	"net/http"
 )
@@ -24,18 +23,16 @@ func defaultConfig() config {
 
 type Api struct {
 	config
-	npsso  string
-	tokens tokens
 }
 
 // New API creates a new API caller
 // Default langage and region are the first in [SupportedLanguages] and [SupportedRegions] resp.
-func NewApi(opts ...Options) (*Api, error) {
+func NewApi(opts ...Options) *Api {
 	c := defaultConfig()
 	for _, opt := range opts {
 		opt(&c)
 	}
-	return &Api{config: c}, nil
+	return &Api{config: c}
 }
 
 func WithLanguage(lang Language) (Options, error) {
@@ -63,13 +60,4 @@ func WithClient(client *http.Client) (Options, error) {
 	return func(c *config) {
 		c.client = client
 	}, nil
-}
-
-var (
-	ErrNPSSOEmpty  = errors.New("npsso is empty")
-	ErrNPSSOLength = errors.New("npsso must be exactly 64 characters")
-)
-
-func (a *Api) GetNPSSO() string {
-	return a.npsso
 }

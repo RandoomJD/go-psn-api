@@ -2,10 +2,17 @@ package psn
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
 )
+
+type AuthedApi struct {
+	*Api
+	npsso  string
+	tokens tokens
+}
 
 var authURL = must(url.Parse("https://ca.account.sony.com/api"))
 
@@ -15,6 +22,11 @@ type tokens struct {
 	AccessExpires  int32  `json:"expires_in"`
 	RefreshExpires int32  `json:"refresh_token_expires_in"`
 }
+
+var (
+	ErrNPSSOEmpty  = errors.New("npsso is empty")
+	ErrNPSSOLength = errors.New("npsso must be exactly 64 characters")
+)
 
 func validateNPSSO(npsso string) error {
 	if npsso == "" {
@@ -26,21 +38,23 @@ func validateNPSSO(npsso string) error {
 	return nil
 }
 
-func (api *Api) Authenticate(ctx context.Context, npsso string) error {
+func (api *Api) Authenticate(ctx context.Context, npsso string) (*AuthedApi, error) {
 	err := validateNPSSO(npsso)
 	if err != nil {
-		return fmt.Errorf("invalid npsso: %v", err)
+		return nil, fmt.Errorf("invalid npsso: %v", err)
 	}
 	tokens, err := api.authRequest(ctx, npsso)
 	if err != nil {
-		return fmt.Errorf("can't do auth request: %w", err)
+		return nil, fmt.Errorf("can't do auth request: %w", err)
 	}
-	api.npsso = npsso
-	api.tokens = tokens
-	return nil
+	var out AuthedApi
+	out.npsso = npsso
+	out.tokens = tokens
+	out.Api = api
+	return &out, nil
 }
 
-func (api *Api) RefreashAccessToken(ctx context.Context) error {
+func (api *AuthedApi) RefreashAccessToken(ctx context.Context) error {
 	if api.tokens.Refresh == "" {
 		return fmt.Errorf("refresh token is empty")
 	}
