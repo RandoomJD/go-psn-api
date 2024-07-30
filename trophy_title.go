@@ -18,7 +18,7 @@ type TrophyTitleFull struct {
 var platforms = "PS3,PS4,PSVITA"
 
 // GetTrophyTitles retrieves a user's trophy titles
-func (api *AuthedApi) GetTrophyTitles(ctx context.Context, username string, limit, offset int) ([]TrophyTitleFull, error) {
+func (api *Api) GetTrophyTitles(ctx context.Context, username string, limit, offset int) ([]TrophyTitleFull, error) {
 	type Response struct {
 		TotalResults int               `json:"totalResults"`
 		Offset       int               `json:"offset"`

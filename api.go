@@ -21,18 +21,18 @@ func defaultConfig() config {
 	}
 }
 
-type Api struct {
+type Authenticator struct {
 	config
 }
 
 // New API creates a new API caller
 // Default langage and region are the first in [SupportedLanguages] and [SupportedRegions] resp.
-func NewApi(opts ...Options) *Api {
+func NewApi(opts ...Options) *Authenticator {
 	c := defaultConfig()
 	for _, opt := range opts {
 		opt(&c)
 	}
-	return &Api{config: c}
+	return &Authenticator{config: c}
 }
 
 func WithLanguage(lang Language) (Options, error) {

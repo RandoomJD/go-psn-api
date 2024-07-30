@@ -36,7 +36,7 @@ type TrophyGroup struct {
 	ComparedUser    UserProgress `json:"comparedUser"`
 }
 
-func (api *Api) baseTrophyQuery(username string, fields ...string) url.Values {
+func (auth *Authenticator) baseTrophyQuery(username string, fields ...string) url.Values {
 	var sb strings.Builder
 	sb.WriteString(trophyFields)
 	for _, f := range fields {
@@ -46,12 +46,12 @@ func (api *Api) baseTrophyQuery(username string, fields ...string) url.Values {
 	q := url.Values{}
 	q.Add("fields", sb.String())
 	q.Add("comparedUser", username)
-	q.Add("npLanguage", string(api.lang))
+	q.Add("npLanguage", string(auth.lang))
 	return q
 }
 
 // Method retrieves user's trophy groups
-func (api *AuthedApi) GetTrophyGroups(ctx context.Context, trophyTitleId, username string) (TrophyTitle, error) {
+func (api *Api) GetTrophyGroups(ctx context.Context, trophyTitleId, username string) (TrophyTitle, error) {
 	headers := api.trophyHeaders()
 
 	url := trophyURL(api.region).JoinPath(trophyGroupApi, trophyTitleId, "trophyGroups")

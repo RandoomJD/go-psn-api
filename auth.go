@@ -8,8 +8,8 @@ import (
 	"net/url"
 )
 
-type AuthedApi struct {
-	*Api
+type Api struct {
+	*Authenticator
 	npsso  string
 	tokens tokens
 }
@@ -38,23 +38,23 @@ func validateNPSSO(npsso string) error {
 	return nil
 }
 
-func (api *Api) Authenticate(ctx context.Context, npsso string) (*AuthedApi, error) {
+func (auth *Authenticator) Authenticate(ctx context.Context, npsso string) (*Api, error) {
 	err := validateNPSSO(npsso)
 	if err != nil {
 		return nil, fmt.Errorf("invalid npsso: %v", err)
 	}
-	tokens, err := api.authRequest(ctx, npsso)
+	tokens, err := auth.authRequest(ctx, npsso)
 	if err != nil {
 		return nil, fmt.Errorf("can't do auth request: %w", err)
 	}
-	var out AuthedApi
+	var out Api
 	out.npsso = npsso
 	out.tokens = tokens
-	out.Api = api
+	out.Authenticator = auth
 	return &out, nil
 }
 
-func (api *AuthedApi) RefreashAccessToken(ctx context.Context) error {
+func (api *Api) RefreashAccessToken(ctx context.Context) error {
 	if api.tokens.Refresh == "" {
 		return fmt.Errorf("refresh token is empty")
 	}
@@ -75,7 +75,7 @@ func (api *AuthedApi) RefreashAccessToken(ctx context.Context) error {
 	return nil
 }
 
-func (api *Api) authRequest(ctx context.Context, npsso string) (tokens, error) {
+func (auth *Authenticator) authRequest(ctx context.Context, npsso string) (tokens, error) {
 	getValues := url.Values{}
 	getValues.Add("access_type", "offline")
 	getValues.Add("app_context", "inapp_ios")
@@ -167,7 +167,7 @@ func (api *Api) authRequest(ctx context.Context, npsso string) (tokens, error) {
 	var postHeaders = authHeaders(npsso, true)
 
 	var t tokens
-	err = api.post(ctx, postValues, authURL.JoinPath("authz/v3/oauth/token"), postHeaders, &t)
+	err = auth.post(ctx, postValues, authURL.JoinPath("authz/v3/oauth/token"), postHeaders, &t)
 	if err != nil {
 		return tokens{}, fmt.Errorf("can't create new POST request: %w ", err)
 	}

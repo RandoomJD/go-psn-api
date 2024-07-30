@@ -78,14 +78,14 @@ func baseProfileQuery() url.Values {
 	return query
 }
 
-func (api *AuthedApi) profileHeaders() http.Header {
+func (api *Api) profileHeaders() http.Header {
 	var h http.Header
 	h.Add("authorization", fmt.Sprintf("Bearer %s", api.tokens.Access))
 	return h
 }
 
 // Method retrieves user profile info by PSN id
-func (api *AuthedApi) GetProfileRequest(ctx context.Context, username string) (profile *Profile, err error) {
+func (api *Api) GetProfileRequest(ctx context.Context, username string) (profile *Profile, err error) {
 	type Response struct {
 		Profile Profile `json:"profile"`
 	}
