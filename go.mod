@@ -1,3 +1,3 @@
-module github.com/sizovilya/go-psn-api
+module github.com/randoomjd/go-psn-api
 
 go 1.19
